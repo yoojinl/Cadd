@@ -36,7 +36,7 @@ shutil.copy(file_name, dest_file_name)
 
 
 script = "#/usr/bin/env sh\n\
-env LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(dirname $(readlink -f $0)) $(dirname $(readlink -f $0))/gdb\n"
+env LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(dirname $(readlink -f $0)) $(dirname $(readlink -f $0))/%s $@\n" % os.path.split(file_name)[1]
 
 script_name = dest_file_name + '.sh'
 f_script = open(script_name, 'w')
