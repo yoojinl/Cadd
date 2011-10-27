@@ -1,47 +1,58 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/bin/sh
 
-import commands, sys, re, os, shutil
-from stat import *
+error() {
+    echo >&2 "$@"
+}
 
-if len(sys.argv) < 3:
-    print "Usage example:"
-    print "python script.py /usr/bin/ls /my/folder\n"
-    exit(1)
+if [ $# -ne 2 ]; then
+	printf "Usage: %s /bin/ls /my/folder\n" "$0"
+	exit 1
+fi
 
-file_name = sys.argv[1]
-dest_folder = sys.argv[2]
+FILE_NAME="$1"
+DST_DIR="$2"
 
-if not os.path.isdir(dest_folder):
-    print "Error:", dest_folder, "is not a directory."
-    exit(1)
+if [ ! -f "$FILE_NAME" ]; then
+	error "$FILE_NAME does not exists"
+fi
 
-ldd_result = commands.getstatusoutput("ldd %s" % file_name)
+if [ ! -d "$DST_DIR" ]; then
+	error "$DST_DIR does not exists or not a directory"
+	exit 1
+fi
+if [ ! -w "$DST_DIR" ]; then
+	error "$DST_DIR does not writable"
+	exit 1
+fi
 
-exit_code = ldd_result[0]
-if exit_code:
-    print "Error: exit code of ldd %s\n" % exit_code
-    exit(1)
+LDD_OUTPUT="$(ldd "$FILE_NAME" 2>&1)"
+LDD_RC=$?
+if [ $LDD_RC -ne 0 ]; then
+	error "ldd fails with exit code $LDD_RC"
+	if [ -n "$LDD_OUTPUT" ]; then
+		error "ldd output was: $LDD_OUTPUT"
+	fi
+	exit 1
+fi
 
-depends = re.findall('(/.*) ', ldd_result[1])
+echo "Copy to $DST_DIR"
 
-print "Copy to", dest_folder
-for dep in depends:
-    shutil.copy(dep, os.path.join(dest_folder, os.path.split(dep)[1]))
-    print "--", dep, '...'
+echo "$LDD_OUTPUT" | grep -o '/[^ ]*' | while read LIB; do
+	cp "$LIB" "$DST_DIR"
+	echo "-- $LIB..."
+done
 
-print "Copy", file_name
-dest_file_name = os.path.join(dest_folder, os.path.split(file_name)[1])
-shutil.copy(file_name, dest_file_name)
+echo "Copy $FILE_NAME"
+cp "$FILE_NAME" "$DST_DIR"
 
+SH_SCRIPT_NAME="$DST_DIR/$(basename "$FILE_NAME").sh"
 
-script = "#/usr/bin/env sh\n\
-env LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(dirname $(readlink -f $0)) $(dirname $(readlink -f $0))/%s $@\n" % os.path.split(file_name)[1]
+cat </dev/null >"$SH_SCRIPT_NAME" <<EOF
+#!/bin/sh
+CURRENT_DIR="\$(dirname \$(readlink -f \$0))"
+env LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$CURRENT_DIR \$CURRENT_DIR/$(basename "$FILE_NAME") "\$@"
+EOF
 
-script_name = dest_file_name + '.sh'
-f_script = open(script_name, 'w')
-f_script.write(script)
+chmod 755 "$SH_SCRIPT_NAME"
 
-os.chmod(script_name, S_IMODE(os.stat(script_name).st_mode) | S_IXUSR)
-
-print "Done"
+echo 'Done'
