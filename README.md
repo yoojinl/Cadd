@@ -2,7 +2,7 @@
 
 ## Example
 
-    $ python cadd.py /usr/bin/gdb /home/user/dest
+    $ ./cadd.sh /usr/bin/gdb /home/user/dest
     Copy to /home/user/dest
     -- /lib/libreadline.so.6 ...
     -- /lib/libncurses.so.5 ...
