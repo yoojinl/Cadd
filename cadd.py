@@ -6,7 +6,7 @@ from stat import *
 
 if len(sys.argv) < 3:
     print "Usage example:"
-    print "python script.py /usr/bin/ls /my/folder\n"
+    print "python script.py /usr/bin/gdb /my/folder\n"
     exit(1)
 
 file_name = sys.argv[1]
